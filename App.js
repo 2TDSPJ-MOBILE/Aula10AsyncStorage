@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect } from "react"
+import { MaskedTextInput } from 'react-native-mask-text';
 
 export default function App() {
   const [nomeProduto, setNomeProduto] = useState("")
@@ -16,6 +17,26 @@ export default function App() {
 
   //Função para salvar produto no AsyncStorage
   async function salvar() {
+    //Validação simples no front
+    if(!nomeProduto || nomeProduto.trim()===""){
+      alert("Por favor, informe o nome do produto")
+      return
+    }else if(nomeProduto.length<2){
+      alert("O nome deve conter pelo menos 2 caracteres")
+      return
+    }else if(nomeProduto.length>5){
+      alert("O nome deve conter até 5 caracteres")
+      return
+    }
+
+    if(!precoProduto || precoProduto===""){
+      alert("Por favor, informe o preço do produto")
+      return
+    }else if(parseFloat(precoProduto)>99999){
+      alert("Preço muito alto")
+      return
+    }
+
     let produtos = [] //Inicializa array vazio
 
     //Verificar se já existe algum dado armazenado no AsyncStorage
@@ -29,7 +50,7 @@ export default function App() {
       produtos[produtoEditado.index] = { nomeP: nomeProduto, precoP: precoProduto }
     } else {
       //Salva o produto no array
-      produtos.push({ nomeP: nomeProduto, precoP: precoProduto })
+      produtos.push({ nomeP: nomeProduto.trim(), precoP: precoProduto })
     }
 
 
@@ -57,14 +78,33 @@ export default function App() {
   }
 
   //Função para deletar o produto
-  async function deletarProduto(index) {
-    const tempDados = listaProdutos
-    const dados = tempDados.filter((item, ind) => {
-      return ind !== index //Filtra o item que será excluido da lista
-    })
+  async function deletarProduto(index,nomeProduto) {
+    Alert.alert(
+      "Confirmar Exclusão",//titulo do alert
+      `Tem certeza que deseja excluir o produto ${nomeProduto}?`,//Mensagem do alerta
+      [
+        {text:"Cancelar",
+          style:"cancel"
+        },
+        {
+          text:"Excluir",
+          style:"destructive",
+          onPress:async()=>{
+          const tempDados = listaProdutos
+          const dados = tempDados.filter((item, ind) => {
+           return ind !== index //Filtra o item que será excluido da lista
+          })
 
-    setListaProduto(dados)//Atualiza o estado listaProduto
-    await AsyncStorage.setItem("PRODUTOS", JSON.stringify(dados))
+         setListaProduto(dados)//Atualiza o estado listaProduto
+         await AsyncStorage.setItem("PRODUTOS", JSON.stringify(dados))
+         Alert.alert("Sucesso","Produto Excluído com sucesso!")
+          }
+        }
+      ],{cancelable:true}
+
+    )
+
+    
   }
 
   //Função para editar produto
@@ -87,11 +127,21 @@ export default function App() {
       />
 
       {/* Campo para digitar o preço do produto */}
-      <TextInput
+      <MaskedTextInput
+        type="custom"
+        mask='999.999.999-99'
+        // options={{
+        //   prefix:"R$",
+        //   decimalSeparator:",",
+        //   groupSeparator:".",
+        //   precision:2
+        // }}
+       
+        keyboardType='numeric'
         placeholder='Digite o preço do produto'
         style={styles.input}
         value={precoProduto}
-        onChangeText={(value) => setPrecoProduto(value)}
+        onChangeText={(text,rawText) => setPrecoProduto(rawText)}
       />
 
       {/* Botão para salvar o produto */}
@@ -117,13 +167,14 @@ export default function App() {
           if (!item || !item.nomeP) return null //Garante que o item não seja null antes da renderização
           return (
             <View style={styles.listaItens}>
+              <Text>INDICE:{index}</Text>
               <Text>NOME PRODUTO:{item.nomeP}</Text>
               <Text>PREÇO PRODUTO:{item.precoP}</Text>
               <View style={{ flexDirection: 'row', gap: 20 }}>
 
                 <TouchableOpacity
                   style={styles.btnDeletar}
-                  onPress={() => deletarProduto(index)}
+                  onPress={() => deletarProduto(index,item.nomeP)}
                 >
                   <Text>DELETAR</Text>
                 </TouchableOpacity>
